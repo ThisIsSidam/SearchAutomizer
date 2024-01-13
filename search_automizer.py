@@ -8,7 +8,6 @@ from PyQt6.QtCore import (
     Qt, 
     pyqtSignal,
     QThread,
-    QObject
 )
 from PyQt6.QtWidgets import (
     QSizePolicy,
@@ -23,30 +22,6 @@ from PyQt6.QtWidgets import (
 )
 from random_question_generator import RandomQuestion
 from config import read_config, write_config
-
-class Worker(QObject):
-    update = pyqtSignal(str)
-    finished = pyqtSignal(int)
-    automizer_is_on = bool
-
-    def __init__(self, counter):
-        super().__init__()
-        self.loop_counter = int
-
-    def run(self):
-        for i in range(int(self.loop_counter)):
-            seconds = random.randint(7, 13)
-            time.sleep(seconds)
-            pyautogui.press('/')
-            pyautogui.press('backspace')
-
-            question = get_question()
-            pyautogui.write(question)
-            pyautogui.press('enter')
-
-            self.update.emit(i+1)
-            if self.automizer_is_on is False:
-                break
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -110,14 +85,10 @@ class MainWindow(QMainWindow):
         vertical_layout.addWidget(self.loop_counter_label)
 
         # Thread Section
-        self.worker_thread = QThread()
         self.worker = Worker(self.get_loop_value())
-        self.worker.moveToThread(self.worker_thread)
-
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.stop_automizer)
+        # self.worker.started.connect(self.worker.run)
         self.worker.update.connect(self.update_counter)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker.finished.connect(self.automizer_off)
 
         # Final Section
         main_layout.addStretch(0)
@@ -125,23 +96,28 @@ class MainWindow(QMainWindow):
         window = QWidget()
         window.setLayout(main_layout)
         self.setCentralWidget(window)
-
         
     def start_automizer(self):
         self.update_button_state(True)
+        self.worker.get_counter(self.get_loop_value())
+        if self.worker.isRunning():
+            print("Already Running")
+        else:
+            self.worker.start()
 
-        self.worker_thread.start(self.get_loop_value())
+    def update_counter(self, counter):
+        self.loop_counter_label.setText(counter)
+        QCoreApplication.processEvents()
 
+    def automizer_off(self):
         self.loop_counter_label.setText("0")
         self.update_button_state(False)
 
-    def update_counter(self, counter):
-        self.loop_counter_label.setText(str(counter))
-        QCoreApplication.processEvents()
-
     def stop_automizer(self):
-        self.stop_button.setEnabled(False)
-        self.worker.automizer_is_on = False
+        if self.worker.isRunning():
+            self.stop_button.setStyleSheet(f"{self.stop_button.styleSheet()} background-color: orange;")
+            self.stop_button.setText("Stopping!")
+            self.worker.stop()
         
     def get_loop_value(self):
         spinbox_value = self.loop_counter_spinbox.value()
@@ -166,9 +142,44 @@ class MainWindow(QMainWindow):
         else: 
             self.start_button.setEnabled(True)
             self.start_button.setStyleSheet(f"{self.start_button.styleSheet()} background-color: green;")
+            self.stop_button.setText("Stop") # Text changes if stop button was pressed. 
             self.stop_button.setEnabled(False)
             self.stop_button.setStyleSheet(f"{self.stop_button.styleSheet()} background-color: grey;")
 
+class Worker(QThread):
+    update = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, counter):
+        super().__init__()
+        self.automizer_is_on = True
+        self.loop_counter = counter
+    
+    def stop(self):
+        self.automizer_is_on = False
+
+    def get_counter(self, new_counter):
+        self.loop_counter = new_counter
+
+    def run(self):
+        for i in range(int(self.loop_counter)):
+            
+            if self.automizer_is_on is False:
+                break
+
+            # seconds = random.randint(7, 13)
+            seconds = 3
+            time.sleep(seconds)
+            pyautogui.press('/')
+            pyautogui.press('backspace')
+
+            question = get_question()
+            pyautogui.write(question)
+            pyautogui.press('enter')
+
+            self.update.emit(f"{i+1}")
+
+        self.finished.emit()
 
 def get_question():
     question = RandomQuestion()
@@ -178,6 +189,7 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
+    app.aboutToQuit.connect(app.deleteLater)
     app.exec()
 
 if __name__ == "__main__":
