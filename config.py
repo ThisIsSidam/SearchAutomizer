@@ -12,7 +12,7 @@ def read_config():
         loop_count = config.get('UserSettings', 'iterations')
         return loop_count
     else: 
-        return None
+        return 0
     
 def write_config(loop_count):
     config = configparser.ConfigParser()

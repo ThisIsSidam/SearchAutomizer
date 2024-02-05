@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
                                        "color: black;" 
                                        "border-radius: 15px;")
 
-        default_value = int(read_config())
+        default_value = read_config()
         if default_value:
             self.default_loop_count = default_value
         else:
@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
             write_config(1)
 
         self.loop_counter_spinbox = QSpinBox()
-        self.loop_counter_spinbox.setValue(self.default_loop_count)
+        self.loop_counter_spinbox.setValue(int(self.default_loop_count))
         self.loop_counter_spinbox.setStyleSheet("background-color: #282828;"
                                                 "color: white;"
                                                 "selection-background-color: #282828;")
@@ -167,8 +167,7 @@ class Worker(QThread):
             if self.automizer_is_on is False:
                 break
 
-            # seconds = random.randint(7, 13)
-            seconds = 3
+            seconds = random.randint(7, 13)
             time.sleep(seconds)
             pyautogui.press('/')
             pyautogui.press('backspace')
